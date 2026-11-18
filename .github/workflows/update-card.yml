@@ -1,0 +1,47 @@
+name: Update BBdc card
+
+on:
+  schedule:
+    - cron: '17 1 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bbdc-card
+  cancel-in-progress: false
+
+jobs:
+  update-card:
+    runs-on: ubuntu-latest
+    env:
+      BBDC_USER_ID: '484890368'
+      BBDC_NICKNAME: 'SakuraKy'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate card
+        run: npm run generate:card
+
+      - name: Commit updated card
+        run: |
+          if git diff --quiet -- bbdc-card.svg; then
+            echo "Card is already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bbdc-card.svg
+          git commit -m "chore: update BBdc card"
+          git push

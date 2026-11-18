@@ -1,5 +1,4 @@
 function isHexColor(input) {
-    var hexPattern = /#?([A-F]|[a-f]|\d){6}|#?([A-F]|[a-f]|\d){3}$/;
-    return hexPattern.test(input)
+    return typeof input === 'string' && /^#?(?:[0-9a-f]{6}|[0-9a-f]{3})$/i.test(input)
 }
 module.exports = isHexColor

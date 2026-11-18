@@ -6,4 +6,17 @@ app.use(bbdcRouter)
 app.use('/', (req, res) => {
     res.status(404).send(new Error404().render())
 })
-app.listen(process.env.PORT || 8000);
+
+app.use((err, req, res, next) => {
+    console.error(err)
+    if (res.headersSent) {
+        return next(err)
+    }
+    res.status(500).json({ error: 'Internal server error' })
+})
+
+if (require.main === module) {
+    app.listen(process.env.PORT || 8000)
+}
+
+module.exports = app

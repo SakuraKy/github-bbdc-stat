@@ -1,88 +1,75 @@
 const express = require('express');
 const { get } = require('axios');
-const cloneDeep = require('lodash.clonedeep')
-const isHexColor = require('../utils/isHexColor')
 const baseURL = require('../baseURL')
-const COLORS = require('../theme')
-const { Error400 } = require('../error_pages')
+const summarizeStats = require('../utils/summarizeStats')
+const { renderCard, renderErrorCard } = require('../utils/renderCard')
 const bbdcRouter = express.Router();
 
-function handleTheme(COLORS, theme) {
-    // 没有主题或者主题不存在
-    if (theme === undefined || COLORS[theme] === undefined) {
-        return 'default'
+function normalizeNickname(nickname) {
+    if (typeof nickname !== 'string' || nickname.trim() === '') {
+        return 'leftover'
     }
-    return theme
+    return nickname.trim().slice(0, 64)
 }
 
-function render(COLORS, theme, data) {
-    function handleColorField(param, field) {
-        if (data[param] !== undefined) {
-            return isHexColor(data[param]) ? '#' + data[param] : data[param]
-        }
-        return COLORS[theme][field]
+function sendSvg(res, svg, { cacheable = false, errorCode } = {}) {
+    res.set({
+        'Content-Type': 'image/svg+xml; charset=utf-8',
+        'Cache-Control': cacheable
+            ? 'public, max-age=3600, s-maxage=21600, stale-while-revalidate=86400'
+            : 'no-store'
+    })
+    if (errorCode) {
+        res.set('X-BBDC-Error', errorCode)
     }
-    const renderColor = cloneDeep(COLORS)
-    renderColor[theme].BORDER = data.hide_border === 'true' ? 0 : COLORS[theme].BORDER
-    renderColor[theme].TITLE = handleColorField('title_color', 'TITLE')
-    renderColor[theme].TEXT = handleColorField('text_color', 'TEXT')
+    res.status(200).send(svg)
+}
 
-    return `
-<svg 
-version="1.1"
-baseProfile="full"
-width="382" height="190"
-xmlns="http://www.w3.org/2000/svg"
-viewBox="0 0 382 190"
-transform="translate(8,6)"
->
-<defs>
-    <filter id="Card" x="0" y="0" width="382" height="190" filterUnits="userSpaceOnUse">
-    <feOffset dy="3" input="SourceAlpha"/>
-    <feGaussianBlur stdDeviation="3" result="blur"/>
-    <feFlood flood-opacity="0.161"/>
-    <feComposite operator="in" in2="blur"/>
-    <feComposite in="SourceGraphic"/>
-    </filter>
-</defs>   
-<g transform="matrix(1, 0, 0, 1, 0, 0)" filter="url(#Card)" stroke="${renderColor[theme].BORDER}">
-<rect width="364" height="172" fill="${renderColor[theme].BACKGROUND}"  rx="10" ry="10"/>
-</g>
- <text x="97"  y="44"  fill="${renderColor[theme].TITLE}" font-size="19" font-weight="600" font-family="SegoeUI, Segoe UI">${data.nickname}'s  bbdc  Stats</text>
- <text x="10"  y="90"  fill="${renderColor[theme].TEXT}"  font-size="15" font-weight="600" font-family="SegoeUI, Segoe UI">Learn num</text>
- <text x="19"  y="130" fill="${renderColor[theme].TEXT}"  font-size="13" font-weight="600" font-family="SegoeUI, Segoe UI">${data.totalLearn} words</text>
- <text x="120" y="90"  fill="${renderColor[theme].TEXT}"  font-size="15" font-weight="600" font-family="SegoeUI, Segoe UI">Review num</text>
- <text x="135" y="130" fill="${renderColor[theme].TEXT}"  font-size="13" font-weight="600" font-family="SegoeUI, Segoe UI">${data.totalReview} words</text>
- <text x="235" y="90"  fill="${renderColor[theme].TEXT}"  font-size="15" font-weight="600" font-family="SegoeUI, Segoe UI">Duration time</text>
- <text x="260" y="130" fill="${renderColor[theme].TEXT}"  font-size="13" font-weight="600" font-family="SegoeUI, Segoe UI">${data.totalDuration} mins</text>
-</svg>
-`
+function sendErrorCard(res, errorCode, message) {
+    return sendSvg(res, renderErrorCard(message), { errorCode })
 }
 
 bbdcRouter.get('/bbdc', async (req, res) => {
     const { userId, theme, nickname, hide_border, title_color, text_color } = req.query
-    // 如果没有userId，返回404
-    if (userId === undefined) {
-        return res.status(400).send(new Error400('没有userId').render())
+
+    if (typeof userId !== 'string' || userId.trim() === '') {
+        return sendErrorCard(res, 'missing-user-id', '缺少必填参数 userId')
     }
-    let totalDuration = 0
-    let totalLearn = 0
-    let totalReview = 0
-    const { data } = await get(`profile/search`, {
-        baseURL,
-        params: { userId }
-    })
-    // 不正确的userId
-    if (data.result_code === 20000) {
-        return res.status(400).send(new Error400('userId不正确').render())
+
+    const normalizedUserId = userId.trim()
+    if (!/^\d+$/.test(normalizedUserId)) {
+        return sendErrorCard(res, 'invalid-user-id', 'userId 格式不正确')
     }
-    const { learnList, durationList } = data.data_body
-    for (let i = 0, len = learnList.length; i < len; i++) {
-        totalDuration += durationList[i].duration
-        totalLearn += learnList[i].learnNum
-        totalReview += learnList[i].reviewNum
+
+    try {
+        const { data } = await get('profile/search', {
+            baseURL,
+            params: { userId: normalizedUserId },
+            timeout: 10000
+        })
+
+        if (data.result_code === 20000) {
+            return sendErrorCard(res, 'invalid-user-id', 'userId 不正确')
+        }
+
+        const stats = summarizeStats(data)
+        if (stats === null || data.result_code !== 200) {
+            return sendErrorCard(res, 'invalid-upstream-data', '学习数据暂时不可用')
+        }
+
+        const svg = renderCard({
+            data: stats,
+            theme,
+            nickname: normalizeNickname(nickname),
+            hideBorder: hide_border === 'true',
+            titleColor: title_color,
+            textColor: text_color
+        })
+        return sendSvg(res, svg, { cacheable: true })
+    } catch (err) {
+        console.error(`Failed to load bbdc stats for userId ${normalizedUserId}:`, err.message)
+        return sendErrorCard(res, 'upstream-error', '学习数据加载失败，请稍后重试')
     }
-    res.header("Content-Type", "image/svg+xml",)
-    res.send(render(COLORS, handleTheme(COLORS, theme), { totalDuration, totalLearn, totalReview, nickname: nickname === undefined ? 'leftover' : nickname, hide_border, title_color, text_color }))
 })
+
 module.exports = bbdcRouter
