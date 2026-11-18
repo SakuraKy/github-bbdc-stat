@@ -14,10 +14,10 @@
 3. 将工作流里的 `BBDC_USER_ID` 和 `BBDC_NICKNAME` 改成自己的参数。
 4. 在 GitHub 个人主页 README 中引用仓库里的 `bbdc-card.svg`。
 
-例如，仓库为 `https://github.com/SakuraKy/github-bbdc-stat` 时，可以使用：
+例如，你自己的仓库为 `https://github.com/YOUR_GITHUB_USERNAME/github-bbdc-stat` 时，可以使用：
 
 ```markdown
-[![SakuraKy's bbdc stats](https://raw.githubusercontent.com/SakuraKy/github-bbdc-stat/main/bbdc-card.svg)](https://github.com/SakuraKy/github-bbdc-stat)
+[![leftover's bbdc stats](https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/github-bbdc-stat/main/bbdc-card.svg)](https://github.com/left0ver/github-bbdc-stat)
 ```
 
 `userId` 是你的不背单词 ID：进入不背单词 App 首页，点击左上角头像，再点击右上角设置，滚动到底部即可查看。
@@ -26,7 +26,7 @@
 
 ```bash
 npm ci
-BBDC_USER_ID=YOUR_ID BBDC_NICKNAME=SakuraKy npm run generate:card
+BBDC_USER_ID=YOUR_ID BBDC_NICKNAME=leftover npm run generate:card
 ```
 
 生成的 `bbdc-card.svg` 会提交到仓库，GitHub README 可以直接引用公开仓库里的 SVG 文件。
@@ -37,7 +37,7 @@ BBDC_USER_ID=YOUR_ID BBDC_NICKNAME=SakuraKy npm run generate:card
 npm start
 ```
 
-请求地址为 `http://localhost:8000/bbdc?userId=YOUR_ID&nickname=SakuraKy`。
+请求地址为 `http://localhost:8000/bbdc?userId=YOUR_ID&nickname=leftover`。
 
 # 可配置参数
 
