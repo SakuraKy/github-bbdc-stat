@@ -27,5 +27,5 @@ aria-labelledby="card-title"
  <text x="120" y="90" fill="#2196F3" font-size="15" font-weight="600" font-family="SegoeUI, Segoe UI">Review num</text>
  <text x="135" y="130" fill="#2196F3" font-size="13" font-weight="600" font-family="SegoeUI, Segoe UI">0 words</text>
  <text x="235" y="90" fill="#2196F3" font-size="15" font-weight="600" font-family="SegoeUI, Segoe UI">Duration time</text>
- <text x="260" y="130" fill="#2196F3" font-size="13" font-weight="600" font-family="SegoeUI, Segoe UI">1280 mins</text>
+ <text x="260" y="130" fill="#2196F3" font-size="13" font-weight="600" font-family="SegoeUI, Segoe UI">1328 mins</text>
 </svg>
